@@ -81,13 +81,23 @@ export type StoredSummary = {
   parsed: ParsedSummary
 }
 
-export type PresetId = 'deepseek' | 'kimi' | 'openai' | 'custom'
+export const PRESET_IDS = ['deepseek', 'kimi', 'mimo', 'mimoPlan', 'qwen', 'glm', 'siliconflow', 'openai'] as const
+
+export type PresetId = (typeof PRESET_IDS)[number] | 'custom'
+
+export type SummaryOutput = 'plugin' | 'folder' | 'both'
+
+export const THINKING_MAX = 4
+
+export const THINKING_LABELS = ['关闭', '轻', '中', '强', '很强'] as const
 
 export type Settings = {
   preset: PresetId
   baseUrl: string
   model: string
   apiKey: string
+  output: SummaryOutput
+  thinking: number
 }
 
 export interface BiliClient {

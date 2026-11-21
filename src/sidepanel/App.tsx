@@ -75,6 +75,10 @@ function LivePanel() {
           blocker={panel.blocker}
           progress={panel.progress}
           seekNote={panel.seekNote}
+          output={panel.settings?.output ?? 'plugin'}
+          savedFile={panel.savedFile}
+          showInPlugin={panel.showInPlugin}
+          onShowInPlugin={panel.revealInPlugin}
           onSelectPage={panel.selectPage}
           onSeek={(seconds) => void panel.seek(seconds)}
         />
@@ -141,7 +145,14 @@ function Fixture({ name }: { name: string }) {
     >
       {tab === 'settings' ? (
         <SettingsView
-          settings={{ preset: 'deepseek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-chat', apiKey: '' }}
+          settings={{
+            preset: 'deepseek',
+            baseUrl: 'https://api.deepseek.com',
+            model: 'deepseek-chat',
+            apiKey: '',
+            output: 'plugin',
+            thinking: 2,
+          }}
           onSave={async (next: Settings) => next}
         />
       ) : (

@@ -13,6 +13,11 @@ type MdElementProps = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement
   selected?: boolean
   indeterminate?: boolean
   hasIcon?: boolean
+  min?: number
+  max?: number
+  step?: number
+  labeled?: boolean
+  valueLabel?: string
 }
 
 declare global {
@@ -30,6 +35,7 @@ declare global {
         'md-tabs': MdElementProps
         'md-primary-tab': MdElementProps
         'md-linear-progress': MdElementProps
+        'md-slider': MdElementProps
         'md-filled-card': MdElementProps
         'md-divider': MdElementProps
       }

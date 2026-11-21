@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createTabClient } from '../extension/bilibili-client.ts'
+import { summaryFolderName, writeSummaryFile } from '../extension/summary-folder.ts'
 import { loadSettings, readBestCache, saveCache, saveSettings } from '../extension/storage.ts'
 import { seekInTab } from '../extension/seek.ts'
 import { getActiveTab } from '../extension/tabs.ts'
@@ -32,6 +33,8 @@ export function useSummaryPanel() {
   const [progressValue, setProgressValue] = useState<number | null>(null)
   const [seekNote, setSeekNote] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [savedFile, setSavedFile] = useState<string | null>(null)
+  const [showInPlugin, setShowInPlugin] = useState(true)
   const [reloadToken, setReloadToken] = useState(0)
   const settingsRef = useRef(settings)
   const videoRef = useRef(video)
@@ -159,6 +162,29 @@ export function useSummaryPanel() {
     })
   }, [])
 
+  const deliver = useCallback(async (meta: VideoMeta, stored: StoredSummary, current: Settings, gen: number) => {
+    if (summaryGen.current !== gen) return
+    setSummary(stored)
+    setBlocker(null)
+    setShowInPlugin(current.output !== 'folder')
+    setSavedFile(null)
+    if (current.output !== 'plugin') {
+      try {
+        const filename = await writeSummaryFile(meta, stored)
+        if (summaryGen.current !== gen) return
+        setSavedFile(filename)
+      } catch (caught) {
+        if (summaryGen.current !== gen) return
+        setShowInPlugin(true)
+        setError(caught instanceof Error ? caught.message : '写入文件夹失败')
+      }
+    }
+    if (summaryGen.current !== gen) return
+    setStatus('ready')
+    setProgress(null)
+    setProgressValue(null)
+  }, [])
+
   const runSummary = useCallback(
     async (mode: SummarySource, force: boolean) => {
       const currentVideo = videoRef.current
@@ -166,6 +192,11 @@ export function useSummaryPanel() {
       if (!currentVideo || !currentSettings || tabId === null) return
       if (!currentSettings.apiKey.trim()) {
         setError('先在设置里填写 API Key。')
+        return
+      }
+      if (currentSettings.output !== 'plugin' && !(await summaryFolderName())) {
+        setError('先在设置里选择保存文件夹。')
+        setStatus('ready')
         return
       }
       const gen = ++summaryGen.current
@@ -203,9 +234,7 @@ export function useSummaryPanel() {
             const cached = await readBestCache(extracted.meta, currentSettings)
             if (summaryGen.current !== gen) return
             if (cached?.source === 'subtitle') {
-              setSummary(cached)
-              setStatus('ready')
-              setProgress(null)
+              await deliver(extracted.meta, cached, currentSettings, gen)
               return
             }
           }
@@ -233,12 +262,7 @@ export function useSummaryPanel() {
         }
         const keys = cacheKeysFor(activeMeta, currentSettings)
         await saveCache(mode === 'subtitle' ? keys.subtitle : keys.description, stored)
-        if (summaryGen.current !== gen) return
-        setSummary(stored)
-        setBlocker(null)
-        setStatus('ready')
-        setProgress(null)
-        setProgressValue(null)
+        await deliver(activeMeta, stored, currentSettings, gen)
       } catch (caught) {
         if (summaryGen.current !== gen) return
         setStatus(videoRef.current ? 'ready' : 'error')
@@ -247,7 +271,7 @@ export function useSummaryPanel() {
         setError(caught instanceof Error ? caught.message : '总结失败')
       }
     },
-    [tabId],
+    [deliver, tabId],
   )
 
   const seek = useCallback(
@@ -293,6 +317,9 @@ export function useSummaryPanel() {
     progressValue,
     seekNote,
     copied,
+    savedFile,
+    showInPlugin,
+    revealInPlugin: () => setShowInPlugin(true),
     hasKey: Boolean(settings?.apiKey.trim()),
     canDescribe: Boolean(video && descriptionIsUsable(video.desc)),
     selectPage,

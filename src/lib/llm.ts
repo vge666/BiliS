@@ -1,4 +1,5 @@
 import { chatCompletionsUrl } from './endpoints.ts'
+import { thinkingFields } from './thinking.ts'
 
 export type ChatMessage = {
   role: 'system' | 'user'
@@ -25,8 +26,33 @@ function formatApiError(status: number, text: string): string {
   } catch {
     detail = text.slice(0, 180)
   }
-  detail = detail.replace(/sk-[A-Za-z0-9_-]+/g, 'sk-***').replace(/Bearer\s+\S+/gi, 'Bearer ***')
+  detail = detail
+    .replace(/sk-[A-Za-z0-9_-]+/g, 'sk-***')
+    .replace(/\bt?tp-[A-Za-z0-9_-]+/g, 'tp-***')
+    .replace(/Bearer\s+\S+/gi, 'Bearer ***')
   return detail ? `接口返回 ${status}：${detail}` : `接口返回 ${status}`
+}
+
+export function requestHeaders(baseUrl: string, apiKey: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+  }
+  try {
+    if (new URL(baseUrl).hostname.endsWith('xiaomimimo.com')) headers['api-key'] = apiKey
+  } catch {
+    // An unusable address is reported when the request itself fails.
+  }
+  return headers
+}
+
+function requestBody(baseUrl: string, model: string, messages: ChatMessage[], thinking: number): Record<string, unknown> {
+  return {
+    model,
+    temperature: 0.2,
+    messages,
+    ...thinkingFields(baseUrl, model, thinking),
+  }
 }
 
 export async function chatComplete(options: {
@@ -34,6 +60,7 @@ export async function chatComplete(options: {
   apiKey: string
   model: string
   messages: ChatMessage[]
+  thinking?: number
   fetchImpl?: typeof fetch
 }): Promise<string> {
   const fetchImpl = options.fetchImpl ?? fetch
@@ -41,15 +68,8 @@ export async function chatComplete(options: {
   try {
     response = await fetchImpl(chatCompletionsUrl(options.baseUrl), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${options.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: options.model,
-        temperature: 0.2,
-        messages: options.messages,
-      }),
+      headers: requestHeaders(options.baseUrl, options.apiKey),
+      body: JSON.stringify(requestBody(options.baseUrl, options.model, options.messages, options.thinking ?? 0)),
       signal: AbortSignal.timeout(60_000),
     })
   } catch (error) {

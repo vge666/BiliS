@@ -1,5 +1,5 @@
 import { formatTimestamp } from '../lib/subtitle.ts'
-import type { StoredSummary, VideoMeta } from '../lib/types.ts'
+import type { StoredSummary, SummaryOutput, VideoMeta } from '../lib/types.ts'
 import { useFieldValue } from './fields.tsx'
 import { SymbolIcon } from './icons.tsx'
 import type { IdleKind, PanelStatus } from './use-summary.ts'
@@ -22,6 +22,10 @@ export function SummaryView({
   blocker,
   progress,
   seekNote,
+  output = 'plugin',
+  savedFile = null,
+  showInPlugin = true,
+  onShowInPlugin,
   onSelectPage,
   onSeek,
 }: {
@@ -33,6 +37,10 @@ export function SummaryView({
   blocker: string | null
   progress: string | null
   seekNote: string | null
+  output?: SummaryOutput
+  savedFile?: string | null
+  showInPlugin?: boolean
+  onShowInPlugin?: () => void
   onSelectPage: (page: number) => void
   onSeek: (seconds: number) => void
 }) {
@@ -107,14 +115,29 @@ export function SummaryView({
 
       {status === 'working' && progress ? <p className="body-large">{progress}</p> : null}
 
-      {summary?.source === 'description' ? (
+      {savedFile ? (
+        <div className="banner banner--info">
+          <SymbolIcon name="info" />
+          <p className="body-medium">已写入文件夹：{savedFile}</p>
+        </div>
+      ) : null}
+
+      {summary && output === 'folder' && !showInPlugin ? (
+        <md-filled-card>
+          <p className="title-medium">总结已放到所选文件夹</p>
+          <p className="body-medium on-surface-variant">{savedFile ?? '文件名会在写入后显示。'}</p>
+          <md-text-button onClick={onShowInPlugin}>在插件里看</md-text-button>
+        </md-filled-card>
+      ) : null}
+
+      {summary?.source === 'description' && showInPlugin ? (
         <div className="banner banner--note">
           <SymbolIcon name="info" />
           <p className="body-medium">这份总结只来自标题和简介，不是根据字幕。</p>
         </div>
       ) : null}
 
-      {summary ? (
+      {summary && showInPlugin ? (
         <md-filled-card>
           <div className="row">
             <p className="body-small on-surface-variant">上次总结于 {formatWhen(summary.createdAt)}</p>

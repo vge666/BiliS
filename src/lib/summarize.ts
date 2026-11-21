@@ -14,7 +14,7 @@ export async function summarizeMaterial(options: {
   meta: VideoMeta
   source: SummarySource
   cues?: Cue[]
-  settings: { baseUrl: string; model: string; apiKey: string }
+  settings: { baseUrl: string; model: string; apiKey: string; thinking?: number }
   fetchImpl?: typeof fetch
   chunkLimit?: number
   onProgress?: (progress: SummarizeProgress) => void
@@ -30,6 +30,7 @@ export async function summarizeMaterial(options: {
       baseUrl: options.settings.baseUrl,
       apiKey: options.settings.apiKey,
       model: options.settings.model,
+      thinking: options.settings.thinking ?? 0,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
